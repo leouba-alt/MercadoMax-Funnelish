@@ -38,6 +38,20 @@
 }
 
 
+function generarIdIntegramelo(length = 10) {
+  const caracteres =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+  return Array.from(
+    { length },
+    () =>
+      caracteres.charAt(
+        Math.floor(Math.random() * caracteres.length)
+      )
+  ).join("");
+}
+
+
 function readIntegramelo() {
 
   const input =
@@ -48,11 +62,7 @@ function readIntegramelo() {
   const currentUrl =
     `${location.hostname}${location.pathname}`;
 
-
-  // Si el campo no existe en Funnelish,
-  // no intentamos inventarlo.
   if (!input) {
-
     console.warn(
       "[MercadoMax] No existe el campo idIntegramelo"
     );
@@ -61,8 +71,142 @@ function readIntegramelo() {
       idIntegramelo: null,
       urlOrigin: currentUrl,
     };
+  }
+
+
+  // Si ya existe un ID, lo respetamos
+  if (input.value) {
+
+    try {
+
+      const parsed =
+        JSON.parse(input.value);
+
+      if (parsed?.idIntegramelo) {
+
+        return {
+          idIntegramelo:
+            parsed.idIntegramelo,
+
+          urlOrigin:
+            parsed.urlOrigin ||
+            currentUrl,
+        };
+
+      }
+
+    } catch {
+
+      const raw =
+        String(input.value).trim();
+
+      if (raw) {
+
+        return {
+          idIntegramelo: raw,
+          urlOrigin: currentUrl,
+        };
+
+      }
+
+    }
 
   }
+
+
+  // Buscar ID anterior en localStorage
+  let registros = [];
+
+  try {
+
+    const guardado =
+      JSON.parse(
+        localStorage.getItem(
+          "idIntegramelo"
+        ) || "[]"
+      );
+
+    if (Array.isArray(guardado)) {
+      registros = guardado;
+    }
+
+  } catch {
+
+    registros = [];
+
+  }
+
+
+  const ahora =
+    Date.now();
+
+  const LIMITE =
+    20 * 60 * 1000;
+
+
+  let registro =
+    registros.find(item => {
+
+      if (
+        !item?.id ||
+        item?.url !== currentUrl ||
+        !item?.date
+      ) {
+        return false;
+      }
+
+      const fecha =
+        new Date(item.date).getTime();
+
+      return (
+        ahora - fecha <
+        LIMITE
+      );
+
+    });
+
+
+  // Si no existe uno válido, crear nuevo
+  if (!registro) {
+
+    registro = {
+      url: currentUrl,
+      id: generarIdIntegramelo(10),
+      date: new Date().toISOString(),
+    };
+
+    registros.push(registro);
+
+    localStorage.setItem(
+      "idIntegramelo",
+      JSON.stringify(registros)
+    );
+
+  }
+
+
+  // Guardarlo en Funnelish
+  const datosIntegramelo = {
+    idIntegramelo: registro.id,
+    urlOrigin: currentUrl,
+  };
+
+  input.value =
+    JSON.stringify(datosIntegramelo);
+
+  input.style.display = "none";
+
+  if (input.parentElement) {
+    input.parentElement.style.display = "none";
+  }
+
+  console.log(
+    "[MercadoMax] idIntegramelo activo:",
+    registro.id
+  );
+
+  return datosIntegramelo;
+}
 
 
   // ==========================================================
