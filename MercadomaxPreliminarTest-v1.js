@@ -24,20 +24,233 @@
     document.querySelector(`[name="${name}"]`)?.value || "";
 
 
-  function readIntegramelo() {
+ function generarIdIntegramelo(length = 10) {
+  const caracteres =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-    const input =
-      document.querySelector('[data-name="idIntegramelo"]');
+  return Array.from(
+    { length },
+    () =>
+      caracteres.charAt(
+        Math.floor(Math.random() * caracteres.length)
+      )
+  ).join("");
+}
 
-    if (!input?.value) {
 
-      return {
-        idIntegramelo: null,
-        urlOrigin:
-          `${location.hostname}${location.pathname}`,
-      };
+function readIntegramelo() {
+
+  const input =
+    document.querySelector(
+      '[data-name="idIntegramelo"]'
+    );
+
+  const currentUrl =
+    `${location.hostname}${location.pathname}`;
+
+
+  // Si el campo no existe en Funnelish,
+  // no intentamos inventarlo.
+  if (!input) {
+
+    console.warn(
+      "[MercadoMax] No existe el campo idIntegramelo"
+    );
+
+    return {
+      idIntegramelo: null,
+      urlOrigin: currentUrl,
+    };
+
+  }
+
+
+  // ==========================================================
+  // 1. SI YA EXISTE UN ID, LO RESPETAMOS
+  // ==========================================================
+
+  if (input.value) {
+
+    try {
+
+      const parsed =
+        JSON.parse(input.value);
+
+      if (parsed?.idIntegramelo) {
+
+        return {
+          idIntegramelo:
+            parsed.idIntegramelo,
+
+          urlOrigin:
+            parsed.urlOrigin ||
+            currentUrl,
+        };
+
+      }
+
+    } catch {
+
+      const raw =
+        String(input.value).trim();
+
+      if (raw) {
+
+        return {
+          idIntegramelo: raw,
+          urlOrigin: currentUrl,
+        };
+
+      }
 
     }
+
+  }
+
+
+  // ==========================================================
+  // 2. BUSCAR ID EXISTENTE EN LOCALSTORAGE
+  // ==========================================================
+
+  let registros = [];
+
+  try {
+
+    const guardado =
+      JSON.parse(
+        localStorage.getItem(
+          "idIntegramelo"
+        ) || "[]"
+      );
+
+    if (Array.isArray(guardado)) {
+      registros = guardado;
+    }
+
+  } catch {
+
+    registros = [];
+
+  }
+
+
+  const ahora =
+    Date.now();
+
+  const LIMITE =
+    20 * 60 * 1000;
+
+
+  let registro =
+    registros.find(item => {
+
+      if (
+        !item?.id ||
+        item?.url !== currentUrl ||
+        !item?.date
+      ) {
+        return false;
+      }
+
+      const fecha =
+        new Date(item.date)
+          .getTime();
+
+      return (
+        ahora - fecha <
+        LIMITE
+      );
+
+    });
+
+
+  // ==========================================================
+  // 3. SI NO EXISTE, CREAR NUEVO ID
+  // ==========================================================
+
+  if (!registro) {
+
+    registro = {
+
+      url:
+        currentUrl,
+
+      id:
+        generarIdIntegramelo(10),
+
+      date:
+        new Date().toISOString(),
+
+    };
+
+
+    registros.push(
+      registro
+    );
+
+
+    try {
+
+      localStorage.setItem(
+        "idIntegramelo",
+        JSON.stringify(registros)
+      );
+
+    } catch (error) {
+
+      console.warn(
+        "[MercadoMax] No se pudo guardar idIntegramelo",
+        error
+      );
+
+    }
+
+  }
+
+
+  // ==========================================================
+  // 4. GUARDARLO EN EL CAMPO DE FUNNELISH
+  // ==========================================================
+
+  const datosIntegramelo = {
+
+    idIntegramelo:
+      registro.id,
+
+    urlOrigin:
+      currentUrl,
+
+  };
+
+
+  input.value =
+    JSON.stringify(
+      datosIntegramelo
+    );
+
+
+  // Ocultamos el campo igual que hacía
+  // el código anterior.
+  input.style.display =
+    "none";
+
+  if (input.parentElement) {
+
+    input.parentElement.style.display =
+      "none";
+
+  }
+
+
+  console.log(
+    "[MercadoMax] idIntegramelo activo:",
+    registro.id
+  );
+
+
+  return datosIntegramelo;
+
+}
 
 
     try {
